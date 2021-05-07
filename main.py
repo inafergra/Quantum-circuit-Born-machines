@@ -9,24 +9,26 @@ from functions import *
 
 ## Ansatz hyperparameters
 n_qubits = 3
-depth = 2
-n_params = 2 * depth * n_qubits
 shots = 2**14
 
-## Target distribution
+# Shallow QCBM
+depth_shallow = 2
+n_params_shallow = 2 * depth * n_qubits
 
-def gaussian_pdf(num_bit, mu, sigma):
-    '''get gaussian distribution function'''
-    x = np.arange(2**num_bit)
-    pl = 1. / np.sqrt(2 * np.pi * sigma**2) * \
-        np.exp(-(x - mu)**2 / (2. * sigma**2))
-    return pl/pl.sum()
+# Deep QCBM
+depth_deep = 5
+n_params_deep = 2 * depth_deep * n_qubits
 
-pg = gaussian_pdf(n_qubits, mu=2**(n_qubits-1)-0.5, sigma=2**(n_qubits-2))
-#plt.plot(pg, 'ro')
+
+## Target distribution : shallow QCBM with random parameters
+np.random.seed(1)
+theta_shallow = np.random.random(n_params)*2*np.pi
+ansatz_shallow = variational_circuit(n_qubits, depth, theta_shallow)
+pg = estimate_probs(ansatz_shallow, theta_shallow, n_shots=shots)
+#plt.plot(pg)
 #plt.show()
 
-
+# Deep QCBM
 theta_entry_symbols = [sympy.Symbol('theta_' + str(i)) for i in range(2 * n_qubits * depth)]
 theta_symbol = sympy.Matrix(theta_entry_symbols)
 ansatz = variational_circuit(n_qubits, depth, theta_symbol)
@@ -41,6 +43,8 @@ kernel_matrix = multi_rbf_kernel(basis, basis, sigma_list)
 theta0 = np.random.random(n_params)*2*np.pi
 
 # Initializing loss function with our ansatz, target and kernel matrix
+# Now loss ansatz is another function were we fixed the values circuit, target and kernel_matrix, 
+# so it only takes theta (nice to put into the minimizer)
 loss_ansatz = partial(loss, circuit=ansatz, target=pg, kernel_matrix=kernel_matrix)
 
 # Callback function to track status 
@@ -54,7 +58,7 @@ def callback(x, *args, **kwargs):
 # Training the QCBM.
 start_time = time()
 final_params = minimize(loss_ansatz,
-                        theta0, 
+                        theta0,
                         method="L-BFGS-B", 
                         jac=partial(gradient, kernel_matrix=kernel_matrix, ansatz=ansatz, pg=pg),
                         tol=10**-5, 
