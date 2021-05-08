@@ -13,17 +13,17 @@ shots = 2**14
 
 # Shallow QCBM
 depth_shallow = 2
-n_params_shallow = 2 * depth * n_qubits
+n_params_shallow = 2 * depth_shallow * n_qubits
 
 # Deep QCBM
-depth_deep = 5
-n_params_deep = 2 * depth_deep * n_qubits
+depth = 5
+n_params = 2 * depth * n_qubits
 
 
 ## Target distribution : shallow QCBM with random parameters
 np.random.seed(1)
-theta_shallow = np.random.random(n_params)*2*np.pi
-ansatz_shallow = variational_circuit(n_qubits, depth, theta_shallow)
+theta_shallow = np.random.random(n_params_shallow)*2*np.pi
+ansatz_shallow = variational_circuit(n_qubits, depth_shallow, theta_shallow)
 pg = estimate_probs(ansatz_shallow, theta_shallow, n_shots=shots)
 #plt.plot(pg)
 #plt.show()
@@ -45,7 +45,8 @@ theta0 = np.random.random(n_params)*2*np.pi
 # Initializing loss function with our ansatz, target and kernel matrix
 # Now loss ansatz is another function were we fixed the values circuit, target and kernel_matrix, 
 # so it only takes theta (nice to put into the minimizer)
-loss_ansatz = partial(loss, circuit=ansatz, target=pg, kernel_matrix=kernel_matrix)
+loss_ansatz = partial(loss, circuit=ansatz, target=pg, kernel_matrix=kernel_matrix, n_shots=shots)
+sparse_loss_ansatz = 
 
 # Callback function to track status 
 step = [0]
@@ -60,14 +61,25 @@ start_time = time()
 final_params = minimize(loss_ansatz,
                         theta0,
                         method="L-BFGS-B", 
-                        jac=partial(gradient, kernel_matrix=kernel_matrix, ansatz=ansatz, pg=pg),
+                        jac=partial(gradient, kernel_matrix=kernel_matrix, ansatz=ansatz, pg=pg, n_shots=shots),
                         tol=10**-5, 
                         options={'maxiter':20, 'disp': 0, 'gtol':1e-10, 'ftol':0}, 
                         callback=callback)
 end_time = time() 
 print(f'It took {end_time-start_time} to train the QCBM')
 
-plt.plot(list(range(len(tracking_cost))), tracking_cost)
+
+plt.plot(list(range(len(tracking_cost))), tracking_cost, 'g')
+plt.title('Loss per iteration')
+plt.xlabel('Iteration')
+plt.ylabel('Loss')
 plt.show()
-plt.plot(estimate_probs(ansatz, final_params.x), 'ro')
+
+
+plt.plot(estimate_probs(ansatz, final_params.x ,n_shots=shots), 'ro', label='Generated model')
+plt.plot(pg, 'bo', label='Input model')
+plt.title('Generated model vs Input model')
+plt.xlabel('Input data')
+plt.ylabel('Probability')
+plt.legend()
 plt.show()
