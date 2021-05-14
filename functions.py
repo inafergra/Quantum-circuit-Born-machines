@@ -1,7 +1,7 @@
 import cirq, sympy
 import matplotlib.pyplot as plt
 import numpy as np
-#Implementing the ansatz
+
 
 
 def estimate_probs(circuit, theta, n_shots):
@@ -55,7 +55,6 @@ def kernel_expectation(px, py, kernel_matrix):
     '''Function that computes expectation of kernel in MMD loss'''
     return px.dot(kernel_matrix).dot(py)
 
-
 def squared_MMD_loss(probs, target, kernel_matrix):
     '''Function that computes the squared MMD loss related to the given kernel_matrix.'''
     dif_probs = probs - target
@@ -66,7 +65,7 @@ def loss(theta, circuit, target, kernel_matrix, n_shots):
     probs = estimate_probs(circuit, theta, n_shots=n_shots)
     return squared_MMD_loss(probs, target, kernel_matrix)
 
-def gradient(theta, kernel_matrix, ansatz, pg, n_shots):
+def gradient(theta, kernel_matrix, ansatz, target_distrib, n_shots):
     '''Get gradient'''
     prob = estimate_probs(ansatz, theta, n_shots=n_shots)
     grad = []
@@ -80,8 +79,33 @@ def gradient(theta, kernel_matrix, ansatz, pg, n_shots):
         # recover
         theta[i] += np.pi/2.
         grad_pos = kernel_expectation(prob, prob_pos, kernel_matrix) - kernel_expectation(prob, prob_neg, kernel_matrix)
-        grad_neg = kernel_expectation(pg, prob_pos, kernel_matrix) - kernel_expectation(pg, prob_neg, kernel_matrix)
+        grad_neg = kernel_expectation(target_distrib, prob_pos, kernel_matrix) - kernel_expectation(target_distrib, prob_neg, kernel_matrix)
         grad.append(grad_pos - grad_neg)
     return np.array(grad)
 
+def loss_l2(theta, lamda, circuit, target, kernel_matrix, n_shots):
+    probs = estimate_probs(circuit, theta, n_shots=n_shots)
+    regul_term = np.sum(np.square(theta))
+    return squared_MMD_loss(probs, target, kernel_matrix) + lamda*regul_term
 
+def gradient_l2(theta, lamda, kernel_matrix, ansatz, target_distrib, n_shots):
+    '''Get gradient of the loss with the L2 regularization term'''
+    prob = estimate_probs(ansatz, theta, n_shots=n_shots)
+    grad = []
+    for i in range(len(theta)):
+        # regularization term
+        grad_regul = 2*abs(theta[i])
+        # pi/2 phase
+        theta[i] += np.pi/2.
+        prob_pos = estimate_probs(ansatz, theta, n_shots=n_shots)
+        # -pi/2 phase
+        theta[i] -= np.pi
+        prob_neg = estimate_probs(ansatz, theta, n_shots=n_shots)
+        # recover
+        theta[i] += np.pi/2.
+        grad_pos = kernel_expectation(prob, prob_pos, kernel_matrix) - kernel_expectation(prob, prob_neg, kernel_matrix)
+        grad_neg = kernel_expectation(target_distrib, prob_pos, kernel_matrix) - kernel_expectation(target_distrib, prob_neg, kernel_matrix)
+
+        grad.append(grad_pos - grad_neg + lamda*grad_regul)
+        
+    return np.array(grad)
