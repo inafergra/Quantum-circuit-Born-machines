@@ -64,42 +64,17 @@ def squared_MMD_loss(probs, target, kernel_matrix):
     dif_probs = probs - target
     return kernel_expectation(dif_probs,dif_probs,kernel_matrix)
 
-def loss(theta, circuit, target, kernel_matrix, n_shots):
-    '''The loss function that we aim to minimize.'''
+def loss(theta, lamda, circuit, target, kernel_matrix, n_shots, norm = 'L2'):
     probs = estimate_probs(circuit, theta, n_shots=n_shots)
-    return squared_MMD_loss(probs, target, kernel_matrix)
-
-def gradient(theta, kernel_matrix, ansatz, target, n_shots):
-    '''Get gradient'''
-    prob = estimate_probs(ansatz, theta, n_shots=n_shots)
-    grad = []
-    for i in range(len(theta)):
-        # pi/2 phase
-        theta[i] += np.pi/2.
-        prob_pos = estimate_probs(ansatz, theta, n_shots=n_shots)
-        # -pi/2 phase
-        theta[i] -= np.pi
-        prob_neg = estimate_probs(ansatz, theta, n_shots=n_shots)
-        # recover
-        theta[i] += np.pi/2.
-        grad_pos = kernel_expectation(prob, prob_pos, kernel_matrix) - kernel_expectation(prob, prob_neg, kernel_matrix)
-        grad_neg = kernel_expectation(target, prob_pos, kernel_matrix) - kernel_expectation(target, prob_neg, kernel_matrix)
-        grad.append(grad_pos - grad_neg)
-    return np.array(grad)
-
-def loss_l2(theta, lamda, circuit, target, kernel_matrix, n_shots, norm = 'L2'):
-    probs = estimate_probs(circuit, theta, n_shots=n_shots)
-
     if norm == 'L2':
         regul_term = np.sqrt(np.sum(np.square(theta)))
-    if norm == 'L0':
+    elif norm == 'L0':
         regul_term = np.count_nonzero(theta)
     else:
         regul_term = 0
-
     return squared_MMD_loss(probs, target, kernel_matrix) + lamda*regul_term
 
-def gradient_l2(theta, lamda, kernel_matrix, ansatz, target, n_shots, norm = 'L2'):
+def gradient(theta, lamda, kernel_matrix, ansatz, target, n_shots, norm = 'L2'):
     '''Get gradient of the loss with the L2 regularization term'''
     prob = estimate_probs(ansatz, theta, n_shots=n_shots)
     grad = []
@@ -107,7 +82,8 @@ def gradient_l2(theta, lamda, kernel_matrix, ansatz, target, n_shots, norm = 'L2
         # regularization term
         if norm == 'L2':
             grad_regul = abs(theta[i]) /  np.sqrt(np.sum(np.square(theta)))
-        if norm == 'L0':
+
+        elif norm == 'L0':
             grad_regul = 0
         else:
             grad_regul = 0
@@ -126,34 +102,8 @@ def gradient_l2(theta, lamda, kernel_matrix, ansatz, target, n_shots, norm = 'L2
         
     return np.array(grad)
 
-def loss_l0(theta, lamda, circuit, target, kernel_matrix, n_shots):
-    probs = estimate_probs(circuit, theta, n_shots=n_shots)
-    regul_term = np.count_nonzero(theta)
-    return squared_MMD_loss(probs, target, kernel_matrix) + lamda*regul_term
-
-def gradient_l0(theta, lamda, kernel_matrix, ansatz, target, n_shots):
-    '''Get gradient of the loss with the L2 regularization term'''
-    prob = estimate_probs(ansatz, theta, n_shots=n_shots)
-    grad = []
-    for i in range(len(theta)):
-        # pi/2 phase
-        theta[i] += np.pi/2.
-        prob_pos = estimate_probs(ansatz, theta, n_shots=n_shots)
-        # -pi/2 phase
-        theta[i] -= np.pi
-        prob_neg = estimate_probs(ansatz, theta, n_shots=n_shots)
-        # recover
-        theta[i] += np.pi/2.
-        grad_pos = kernel_expectation(prob, prob_pos, kernel_matrix) - kernel_expectation(prob, prob_neg, kernel_matrix)
-        grad_neg = kernel_expectation(target, prob_pos, kernel_matrix) - kernel_expectation(target, prob_neg, kernel_matrix)
-
-        grad.append(grad_pos - grad_neg )
-        
-    return np.array(grad)
-
-
 def relative_entropy(P,Q):
-    '''Calculates the relative entropy of the target distribution Q and the generated distribution P'''
+    '''Calculates the relative entropy of the target distribution P and the generated distribution Q'''
     return  entropy(P, qk=Q) #np.sum(P*np.log(P/Q))
 
 
