@@ -25,7 +25,7 @@ def entangling_layer(n_qubits):
         yield cirq.CZ(cirq.GridQubit(i, 0), cirq.GridQubit((i+1) % n_qubits, 0))
 
 def variational_circuit(n_qubits, depth, theta):
-    '''Variational circuit, i.e., the ansatz.'''
+    '''Constructs the variational circuit, i.e., the ansatz.'''
 
     if len(theta) != (2 * depth * n_qubits):
         raise ValueError("Theta of incorrect dimension, must equal 2*depth*n_qubits")

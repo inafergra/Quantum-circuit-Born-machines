@@ -8,11 +8,9 @@ import numpy as np
 from learning_functions import *
 from circuit_design import * 
 
-# TODO: generate test set to benchmark 
-
 ## Ansatz hyperparameters
 n_qubits = 3
-shots = 0
+shots = 0 #set to 0 to use statevector
 lamda_list = [8.8e-3] #np.linspace(.001,.01,10)
 
 # Shallow QCBM
@@ -23,13 +21,12 @@ n_params_shallow = 2 * depth_shallow * n_qubits
 depth = 15
 n_params = 2 * depth * n_qubits
 
-## Target distribution : shallow QCBM with random parameters
+## Generate 
 np.random.seed(2)
 theta_shallow = np.random.random(n_params_shallow)*2*np.pi
 ansatz_shallow = variational_circuit(n_qubits, depth_shallow, theta_shallow)
-target_distribution = estimate_probs(ansatz_shallow, theta_shallow, n_shots=100)
+training_distribution = estimate_probs(ansatz_shallow, theta_shallow, n_shots=100)
 test_distribution = estimate_probs(ansatz_shallow, theta_shallow, n_shots=100)
-print(np.sum(target_distribution))
 #plt.plot(target_distribution)
 #plt.show()
 
@@ -47,17 +44,17 @@ kernel_matrix = multi_rbf_kernel(basis, basis, sigma_list)
 # Initial theta
 theta0 = np.random.random(n_params)*2*np.pi
 
-# Callback function to track status 
+
+#Training
 training_entropy_list = []
 test_entropy_list = []
 for lamda in lamda_list:
     print(f'Lambda = {lamda}')
-    # Initializing loss function with our ansatz, target and kernel matrix
 
     # Set up a sparse model 
-    training_loss = partial(loss, lamda=lamda, circuit=ansatz_deep, target=target_distribution, kernel_matrix=kernel_matrix, n_shots=shots)
+    training_loss = partial(loss, lamda=lamda, circuit=ansatz_deep, target=training_distribution, kernel_matrix=kernel_matrix, n_shots=shots)
     test_loss = partial(loss, lamda=lamda, circuit=ansatz_deep, target=test_distribution, kernel_matrix=kernel_matrix, n_shots=shots)
-    gradient_func = partial(gradient, lamda=lamda, kernel_matrix=kernel_matrix, ansatz=ansatz_deep, target=target_distribution, n_shots=shots)
+    gradient_func = partial(gradient, lamda=lamda, kernel_matrix=kernel_matrix, ansatz=ansatz_deep, target=training_distribution, n_shots=shots)
 
     # Set up the callback to track the losses
     step = [0]
@@ -97,7 +94,7 @@ for lamda in lamda_list:
     generated_distribution = estimate_probs(ansatz_deep, final_params.x ,n_shots=shots)
 
     # Benchmark training set
-    training_entropy = relative_entropy(target_distribution, generated_distribution)
+    training_entropy = relative_entropy(training_distribution, generated_distribution)
     training_entropy_list.append(training_entropy)
 
     # Benchmark test set

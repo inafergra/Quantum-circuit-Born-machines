@@ -10,28 +10,21 @@ from learning_functions import *
 from circuit_design import *
 from bas_dataset import * 
 
-#TODO : split training/test set and test sparsity
-
 ## Model hyperparameters
 train = True
 n_qubits = 4
 depth = 15
 n_params = 2 * depth * n_qubits
-shots = 0
-lamda_list = [0] #np.linspace(0,0.005,20)
+shots = 0 #set to 0 to use statevector
+lamda_list = [0] #np.linspace(0,0.005,20) #set to 0 to not regularize
 n_training = 300 #int(2**(n_qubits))
 n_test = 300 #int(2**(n_qubits))
 
+
+#Generating training/test distributions
 training_distribution = random_sample_bas(int(np.sqrt(n_qubits)), n_training)
 test_distribution = random_sample_bas(int(np.sqrt(n_qubits)), n_test)
-
-
-training_distribution = generate_bas_complete(2)
-#print(training_distribution)
-#print(relative_entropy(training_distribution,training_distribution))
-#plt.plot(training_distribution)
-#plt.plot(test_distribution)
-#plt.show()
+#training_distribution = generate_bas_complete(2)
 
 # Generate the QCBM circuit
 theta_entry_symbols = [sympy.Symbol('theta_' + str(i)) for i in range(2 * n_qubits * depth)]
@@ -48,6 +41,8 @@ kernel_matrix = multi_rbf_kernel(basis, basis, sigma_list)
 np.random.seed(2)
 theta0 = np.random.random(n_params)*2*np.pi
 
+
+#Training
 training_entropy_list = []
 test_entropy_list = []
 for lamda in lamda_list:

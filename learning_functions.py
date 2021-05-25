@@ -5,7 +5,15 @@ import pydeep.base.numpyextension as npext
 from scipy.stats import entropy
 
 def estimate_probs(circuit, theta, n_shots):
-    ''' Estimate all probabilities of the PQCs distribution.'''
+    ''' Estimate all probabilities of the PQCs distribution.
+    
+    Args:
+        circuit (list): instance of the cirq.circuits.circuit.Circuit class
+        theta (float): parameters of the circuit.
+        n_shots (int): number of shots.
+    Returns:
+        1darray: output probabilites of the circuit.
+    '''
 
     n_qubits = len(circuit.all_qubits())
 
@@ -56,15 +64,47 @@ def multi_rbf_kernel(x, y, sigma_list):
     return K
 
 def kernel_expectation(px, py, kernel_matrix):
-    '''Function that computes expectation of kernel in MMD loss'''
+    '''Function that computes expectation of kernel in MMD loss
+
+    Args:
+        px (1darray) 
+        py (1darray) 
+        kernel_matrix (2darray): kernel matrix.
+    Returns:
+        float: kernel expectation.
+    '''
     return px.dot(kernel_matrix).dot(py)
 
 def squared_MMD_loss(probs, target, kernel_matrix):
-    '''Function that computes the squared MMD loss related to the given kernel_matrix.'''
+    '''
+    Function that computes the squared MMD loss between the 'probs' and 'target' distribution
+     with to the given kernel_matrix.
+     
+    Args:
+        probs (1darray) : generated distribution.
+        target (1darray) : target distribution.
+        kernel_matrix (2darray): kernel matrix.
+    Returns:
+        float: kernel expectation.
+    '''
     dif_probs = probs - target
     return kernel_expectation(dif_probs,dif_probs,kernel_matrix)
 
 def loss(theta, lamda, circuit, target, kernel_matrix, n_shots, norm = 'L2'):
+    '''
+    Computes the loss function of the generated distribution by the circuit, with regularization parameter lambda
+    
+    Args:
+        theta (float): parameters of the circuit.
+        lamda (float): regularization parameter.
+        circuit (list): instance of the cirq.circuits.circuit.Circuit class
+        target (1darray): target distribution to be learnt
+        kernel_matrix (2darray) : kernel matrix.
+        n_shots (int): number of shots.
+        norm (string): norm used in the regularization term. Can be L2 or L0.
+    Returns:
+        float: value of the loss function.
+    '''
     probs = estimate_probs(circuit, theta, n_shots=n_shots)
     if norm == 'L2':
         regul_term = np.sqrt(np.sum(np.square(theta)))
@@ -75,7 +115,19 @@ def loss(theta, lamda, circuit, target, kernel_matrix, n_shots, norm = 'L2'):
     return squared_MMD_loss(probs, target, kernel_matrix) + lamda*regul_term
 
 def gradient(theta, lamda, kernel_matrix, ansatz, target, n_shots, norm = 'L2'):
-    '''Get gradient of the loss with the L2 regularization term'''
+    '''Get gradient of the loss with the L2 regularization term
+    
+    Args:
+        theta (float): parameters of the circuit.
+        lamda (float): regularization parameter.
+        kernel_matrix (2darray) : kernel matrix.
+        ansatz (list): instance of the cirq.circuits.circuit.Circuit class
+        target (1darray): target distribution to be learnt
+        n_shots (int): number of shots.
+        norm (string): norm used in the regularization term. Can be L2 or L0.
+    Returns:
+        float: value of the gradient of the loss function.
+    '''
     prob = estimate_probs(ansatz, theta, n_shots=n_shots)
     grad = []
     for i in range(len(theta)):
@@ -103,7 +155,14 @@ def gradient(theta, lamda, kernel_matrix, ansatz, target, n_shots, norm = 'L2'):
     return np.array(grad)
 
 def relative_entropy(P,Q):
-    '''Calculates the relative entropy of the target distribution P and the generated distribution Q'''
+    '''Calculates the relative entropy (KL-divergence) of the target distribution P and the generated distribution Q
+    
+    Args:
+        P (1darray) : target distribution.
+        Q (1darray) : generated distribution.
+    Returns:
+        float: value of the KL-divergence between the distribution.
+    '''
     return  entropy(P, qk=Q) #np.sum(P*np.log(P/Q))
 
 
